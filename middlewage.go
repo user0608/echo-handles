@@ -73,6 +73,11 @@ func TableQueryHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 	}
 	return func(c echo.Context) error {
 		var table = c.Param("table")
+		var count int64
+		if err := tx.Table(table).Count(&count).Error; err != nil {
+			slog.Error("GetTableHandle", "error", err)
+			return answer.Err(c, errs.Internal(errs.ErrInternal))
+		}
 		if _, ok := tableMap[table]; !ok {
 			return answer.Err(c, errs.Bad("table not found"))
 		}
@@ -89,11 +94,6 @@ func TableQueryHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 			return answer.Err(c, errs.Internal(errs.ErrInternal))
 		}
 
-		var count int64
-		if err := tx.Table(table).Count(&count).Error; err != nil {
-			slog.Error("GetTableHandle", "error", err)
-			return answer.Err(c, errs.Internal(errs.ErrInternal))
-		}
 		result, err := prepareRecords(rows)
 		if err != nil {
 			return answer.Err(c, err)
@@ -109,14 +109,14 @@ func TableQueryWithLimitOffsetHandle(tables []string, tx *gorm.DB) echo.HandlerF
 	}
 	return func(c echo.Context) error {
 		var table = c.Param("table")
-		limit, offset := getLimitOffset(c)
-		rows, err := tx.Offset(int(offset)).Limit(int(limit)).Table(table).Rows()
-		if err != nil {
+		var count int64
+		if err := tx.Table(table).Count(&count).Error; err != nil {
 			slog.Error("GetTableHandle", "error", err)
 			return answer.Err(c, errs.Internal(errs.ErrInternal))
 		}
-		var count int64
-		if err := tx.Table(table).Count(&count).Error; err != nil {
+		limit, offset := getLimitOffset(c)
+		rows, err := tx.Offset(int(offset)).Limit(int(limit)).Table(table).Rows()
+		if err != nil {
 			slog.Error("GetTableHandle", "error", err)
 			return answer.Err(c, errs.Internal(errs.ErrInternal))
 		}
