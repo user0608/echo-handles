@@ -17,9 +17,6 @@ import (
 // aparter de esa informacion se calcula el offset y limit
 // el maximo de registros por pagina es 1000
 func applyLimitOffset(tx *gorm.DB, page int64, perPage int64) *gorm.DB {
-	if perPage > 1000 {
-		perPage = 1000
-	}
 	offset := (page - 1) * perPage
 	return tx.Offset(int(offset)).Limit(int(perPage))
 }
@@ -56,6 +53,12 @@ func TableQueryHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 			return answer.Err(c, errs.Bad("table not found"))
 		}
 		page, perPage := getPagination(c)
+		if page < 1 {
+			page = 1
+		}
+		if perPage < 1 {
+			perPage = 10
+		}
 		rows, err := applyLimitOffset(tx.Table(table), page, perPage).Rows()
 		if err != nil {
 			slog.Error("GetTableHandle", "error", err)
