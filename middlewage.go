@@ -94,7 +94,7 @@ func TableQueryHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 			return answer.Err(c, errs.Internal(errs.ErrInternal))
 		}
 
-		result, err := prepareRecords(rows)
+		result, err := PrepareRecords(rows)
 		if err != nil {
 			return answer.Err(c, err)
 		}
@@ -120,7 +120,7 @@ func TableQueryWithLimitOffsetHandle(tables []string, tx *gorm.DB) echo.HandlerF
 			slog.Error("GetTableHandle", "error", err)
 			return answer.Err(c, errs.Internal(errs.ErrInternal))
 		}
-		result, err := prepareRecords(rows)
+		result, err := PrepareRecords(rows)
 		if err != nil {
 			return answer.Err(c, err)
 		}
@@ -143,7 +143,7 @@ func TableQueryWithoutPaginationHandle(tables []string, tx *gorm.DB) echo.Handle
 			slog.Error("GetTableHandle", "error", err)
 			return answer.Err(c, errs.Internal(errs.ErrInternal))
 		}
-		result, err := prepareRecords(rows)
+		result, err := PrepareRecords(rows)
 		if err != nil {
 			return answer.Err(c, err)
 		}
@@ -151,7 +151,7 @@ func TableQueryWithoutPaginationHandle(tables []string, tx *gorm.DB) echo.Handle
 	}
 }
 
-func prepareRecords(rows *sql.Rows) ([]JsonObject, error) {
+func PrepareRecords(rows *sql.Rows) ([]JsonObject, error) {
 	columns, err := rows.Columns()
 	if err != nil {
 		slog.Error("GetTableHandle", "error", err)
