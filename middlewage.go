@@ -3,9 +3,11 @@ package echohandles
 import (
 	"database/sql"
 	"database/sql/driver"
+	"encoding/json"
 	"log/slog"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/user0608/goones/answer"
@@ -65,21 +67,33 @@ func getLimitOffset(c echo.Context) (int64, int64) {
 	}
 	return limit, offset
 }
-
+func tableName(c echo.Context) (string, error) {
+	var table = c.Param("table")
+	if strings.Contains(table, "favicon") {
+		return "", answer.Err(c, errs.NF(errs.ErrNotFound))
+	}
+	if table == "" {
+		return "", answer.Err(c, errs.NF(errs.ErrNotFound))
+	}
+	return table, nil
+}
 func TableQueryHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 	var tableMap = make(map[string]bool)
 	for _, table := range tables {
 		tableMap[table] = true
 	}
 	return func(c echo.Context) error {
-		var table = c.Param("table")
+		table, err := tableName(c)
+		if err != nil {
+			return err
+		}
+		if _, ok := tableMap[table]; !ok {
+			return answer.Err(c, errs.Bad("table not found"))
+		}
 		var count int64
 		if err := tx.Table(table).Count(&count).Error; err != nil {
 			slog.Error("GetTableHandle", "error", err)
 			return answer.Err(c, errs.Internal(errs.ErrInternal))
-		}
-		if _, ok := tableMap[table]; !ok {
-			return answer.Err(c, errs.Bad("table not found"))
 		}
 		page, perPage := getPagination(c)
 		if page < 1 {
@@ -108,7 +122,13 @@ func TableQueryWithLimitOffsetHandle(tables []string, tx *gorm.DB) echo.HandlerF
 		tableMap[table] = true
 	}
 	return func(c echo.Context) error {
-		var table = c.Param("table")
+		table, err := tableName(c)
+		if err != nil {
+			return err
+		}
+		if _, ok := tableMap[table]; !ok {
+			return answer.Err(c, errs.Bad("table not found"))
+		}
 		var count int64
 		if err := tx.Table(table).Count(&count).Error; err != nil {
 			slog.Error("GetTableHandle", "error", err)
@@ -134,7 +154,10 @@ func TableQueryWithoutPaginationHandle(tables []string, tx *gorm.DB) echo.Handle
 		tableMap[table] = true
 	}
 	return func(c echo.Context) error {
-		var table = c.Param("table")
+		table, err := tableName(c)
+		if err != nil {
+			return err
+		}
 		if _, ok := tableMap[table]; !ok {
 			return answer.Err(c, errs.Bad("table not found"))
 		}
@@ -192,16 +215,16 @@ func scanJsonField(values []interface{}, columns []string) JsonObject {
 		} else {
 			item.Value = nil
 		}
-		item.Value = fixUint8AFloat64(item.Value)
+		item.Value = fixDataType(item.Value)
 		jsonObject = append(jsonObject, item)
 	}
 	return jsonObject
 }
 
-func fixUint8AFloat64(v any) any {
+func fixDataType(v any) any {
 	switch v := v.(type) {
 	case []byte:
-		return string(v)
+		return json.RawMessage(v)
 	}
 	return v
 }
