@@ -148,6 +148,34 @@ func TableQueryWithLimitOffsetHandle(tables []string, tx *gorm.DB) echo.HandlerF
 	}
 }
 
+func TableQueryLimitOne(tables []string, tx *gorm.DB) echo.HandlerFunc {
+	var tableMap = make(map[string]bool)
+	for _, table := range tables {
+		tableMap[table] = true
+	}
+	return func(c echo.Context) error {
+		table, err := tableName(c)
+		if err != nil {
+			return err
+		}
+		if _, ok := tableMap[table]; !ok {
+			return answer.Err(c, errs.Bad("table not found"))
+		}
+		rows, err := tx.Limit(1).Table(table).Rows()
+		if err != nil {
+			slog.Error("GetTableHandle", "error", err)
+			return answer.Err(c, errs.Internal(errs.ErrInternal))
+		}
+		result, err := PrepareRecords(rows)
+		if err != nil {
+			return answer.Err(c, err)
+		}
+		if len(result) == 0 {
+			return answer.Err(c, errs.NF(errs.ErrRecordNotFound))
+		}
+		return answer.Ok(c, result[0])
+	}
+}
 func TableQueryWithoutPaginationHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 	var tableMap = make(map[string]bool)
 	for _, table := range tables {
