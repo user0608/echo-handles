@@ -70,10 +70,10 @@ func getLimitOffset(c echo.Context) (int64, int64) {
 func tableName(c echo.Context) (string, error) {
 	var table = c.Param("table")
 	if strings.Contains(table, "favicon") {
-		return "", answer.Err(c, errs.NF(errs.ErrNotFound))
+		return "", answer.Err(c, errs.NotFoundDirect(errs.ErrNotFound))
 	}
 	if table == "" {
-		return "", answer.Err(c, errs.NF(errs.ErrNotFound))
+		return "", answer.Err(c, errs.NotFoundDirect(errs.ErrNotFound))
 	}
 	return table, nil
 }
@@ -88,12 +88,12 @@ func TableQueryHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 			return err
 		}
 		if _, ok := tableMap[table]; !ok {
-			return answer.Err(c, errs.Bad("table not found"))
+			return answer.Err(c, errs.BadRequestDirect("table not found"))
 		}
 		var count int64
 		if err := tx.Table(table).Count(&count).Error; err != nil {
 			slog.Error("GetTableHandle", "error", err)
-			return answer.Err(c, errs.Internal(errs.ErrInternal))
+			return answer.Err(c, errs.InternalErrorDirect(errs.ErrInternal))
 		}
 		page, perPage := getPagination(c)
 		if page < 1 {
@@ -105,7 +105,7 @@ func TableQueryHandle(tables []string, tx *gorm.DB) echo.HandlerFunc {
 		rows, err := applyLimitOffset(tx.Table(table), page, perPage).Rows()
 		if err != nil {
 			slog.Error("GetTableHandle", "error", err)
-			return answer.Err(c, errs.Internal(errs.ErrInternal))
+			return answer.Err(c, errs.InternalErrorDirect(errs.ErrInternal))
 		}
 
 		result, err := PrepareRecords(rows)
@@ -127,18 +127,18 @@ func TableQueryWithLimitOffsetHandle(tables []string, tx *gorm.DB) echo.HandlerF
 			return err
 		}
 		if _, ok := tableMap[table]; !ok {
-			return answer.Err(c, errs.Bad("table not found"))
+			return answer.Err(c, errs.BadRequestDirect("table not found"))
 		}
 		var count int64
 		if err := tx.Table(table).Count(&count).Error; err != nil {
 			slog.Error("GetTableHandle", "error", err)
-			return answer.Err(c, errs.Internal(errs.ErrInternal))
+			return answer.Err(c, errs.InternalErrorDirect(errs.ErrInternal))
 		}
 		limit, offset := getLimitOffset(c)
 		rows, err := tx.Offset(int(offset)).Limit(int(limit)).Table(table).Rows()
 		if err != nil {
 			slog.Error("GetTableHandle", "error", err)
-			return answer.Err(c, errs.Internal(errs.ErrInternal))
+			return answer.Err(c, errs.InternalErrorDirect(errs.ErrInternal))
 		}
 		result, err := PrepareRecords(rows)
 		if err != nil {
@@ -159,19 +159,19 @@ func TableQueryLimitOne(tables []string, tx *gorm.DB) echo.HandlerFunc {
 			return err
 		}
 		if _, ok := tableMap[table]; !ok {
-			return answer.Err(c, errs.Bad("table not found"))
+			return answer.Err(c, errs.BadRequestDirect("table not found"))
 		}
 		rows, err := tx.Limit(1).Table(table).Rows()
 		if err != nil {
 			slog.Error("GetTableHandle", "error", err)
-			return answer.Err(c, errs.Internal(errs.ErrInternal))
+			return answer.Err(c, errs.InternalErrorDirect(errs.ErrInternal))
 		}
 		result, err := PrepareRecords(rows)
 		if err != nil {
 			return answer.Err(c, err)
 		}
 		if len(result) == 0 {
-			return answer.Err(c, errs.NF(errs.ErrRecordNotFound))
+			return answer.Err(c, errs.NotFoundDirect(errs.ErrRecordNotFound))
 		}
 		return answer.Ok(c, result[0])
 	}
@@ -187,12 +187,12 @@ func TableQueryWithoutPaginationHandle(tables []string, tx *gorm.DB) echo.Handle
 			return err
 		}
 		if _, ok := tableMap[table]; !ok {
-			return answer.Err(c, errs.Bad("table not found"))
+			return answer.Err(c, errs.BadRequestDirect("table not found"))
 		}
 		rows, err := tx.Table(table).Rows()
 		if err != nil {
 			slog.Error("GetTableHandle", "error", err)
-			return answer.Err(c, errs.Internal(errs.ErrInternal))
+			return answer.Err(c, errs.InternalErrorDirect(errs.ErrInternal))
 		}
 		result, err := PrepareRecords(rows)
 		if err != nil {
@@ -206,7 +206,7 @@ func PrepareRecords(rows *sql.Rows) ([]JsonObject, error) {
 	columns, err := rows.Columns()
 	if err != nil {
 		slog.Error("GetTableHandle", "error", err)
-		return nil, errs.Internal(errs.ErrInternal)
+		return nil, errs.InternalErrorDirect(errs.ErrInternal)
 	}
 	for i, column := range columns {
 		columns[i] = columnName(column)
@@ -220,7 +220,7 @@ func PrepareRecords(rows *sql.Rows) ([]JsonObject, error) {
 		}
 		if err := rows.Scan(pointers...); err != nil {
 			slog.Error("GetTableHandle", "error", err)
-			return nil, errs.Internal(errs.ErrInternal)
+			return nil, errs.InternalErrorDirect(errs.ErrInternal)
 		}
 		var row = scanJsonField(values, columns)
 		result = append(result, row)
